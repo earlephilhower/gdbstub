@@ -18,9 +18,10 @@
 
 #ifndef _GDBSTUB_H_
 #define _GDBSTUB_H_
+#include <stdlib.h>
 
 /* Enable debug statements (printf) */
-#define DEBUG 0
+#define DEBUG 1
 
 /* Include platform specific definitions */
 #include "gdbstub_sys.h"

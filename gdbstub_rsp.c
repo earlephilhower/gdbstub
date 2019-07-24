@@ -17,6 +17,7 @@
  */
 
 #include "gdbstub.h"
+#include <string.h>
 
 /*****************************************************************************
  * Types
@@ -48,6 +49,7 @@ int dbg_strtol(const char *str, size_t len, int base, const char **endptr);
 
 /* Packet functions */
 int dbg_send_packet(const char *pkt, size_t pkt_len);
+int dbg_send_packet_string(const char *str);
 int dbg_recv_packet(char *pkt_buf, size_t pkt_buf_len, size_t *pkt_len);
 int dbg_checksum(const char *buf, size_t len);
 int dbg_recv_ack(void);
@@ -302,6 +304,10 @@ int dbg_send_packet(const char *pkt_data, size_t pkt_len)
 	}
 
 	return dbg_recv_ack();
+}
+
+int dbg_send_packet_string(const char *str) {
+	return dbg_send_packet(str, strlen(str));
 }
 
 /*
@@ -738,13 +744,13 @@ int dbg_read(char *buf, size_t buf_len, size_t len)
 int dbg_main(struct dbg_state *state)
 {
 	address     addr;
-	char        pkt_buf[256];
+	char        pkt_buf[1024];
 	int         status;
 	size_t      length;
 	size_t      pkt_len;
 	const char *ptr_next;
 
-	dbg_send_signal_packet(pkt_buf, sizeof(pkt_buf), 0);
+//	dbg_send_signal_packet(pkt_buf, sizeof(pkt_buf), 0);
 
 	while (1) {
 		/* Receive the next packet */
@@ -788,6 +794,16 @@ int dbg_main(struct dbg_state *state)
 				} \
 			}
 
+		/* Query supported */
+		case 'q':
+			if (!strncmp(&pkt_buf[1], "Supported", 9)) {
+				dbg_send_packet_string("swbreak+;hwbreak+;PacketSize=FF");
+			} else if (!strncmp(&pkt_buf[1],  "Attached", 8)) {
+				dbg_send_packet_string("1");
+			} else {
+				dbg_send_packet_string("");
+			}
+			break;
 		/*
 		 * Read Registers
 		 * Command Format: g
@@ -826,7 +842,7 @@ int dbg_main(struct dbg_state *state)
 			ptr_next += 1;
 			token_expect_integer_arg(addr);
 
-			if (addr >= DBG_CPU_I386_NUM_REGISTERS) {
+			if (addr >= DBG_NUM_REGISTERS) {
 				goto error;
 			}
 
@@ -849,7 +865,7 @@ int dbg_main(struct dbg_state *state)
 			token_expect_integer_arg(addr);
 			token_expect_seperator('=');
 
-			if (addr >= DBG_CPU_I386_NUM_REGISTERS) {
+			if (addr >= DBG_NUM_REGISTERS) {
 				goto error;
 			}
 
