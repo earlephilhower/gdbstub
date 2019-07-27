@@ -26,7 +26,10 @@
 #include <libelf.h>
 
 // Static ensures all fields are initted to 0, so no need to check later on
-static struct dbg_state    dbg_state;
+static struct dbg_state dbg_state;
+
+#define RAMSTART 0x3FFE8000
+#define RAMLEN   (0x14000 + 0x4000)
 
 void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 {
@@ -53,8 +56,9 @@ void dbg_sys_load(const char *fname)
 	const char *mem = "---- begin core ----";
 
 	// Always add the RAM, even if it's not loaded.  We can fill w/data later
-	uint8_t *ram = (uint8_t*)malloc(80 * 1024);
-	add_mem_region(0x3FFEC000, 80*1024, ram);
+	uint8_t *ram = (uint8_t*)malloc(RAMLEN);
+	memset(ram, 0xec, RAMLEN);
+	add_mem_region(RAMSTART, RAMLEN, ram);
 
 	FILE *fp = fopen(fname, "r");
 	while (fgets(buff, sizeof(buff), fp)) {
@@ -70,7 +74,7 @@ void dbg_sys_load(const char *fname)
 			fscanf(fp, "%x", &dbg_state.regs.sr176);
 			fscanf(fp, "%*x"); // SR208
 		} else if (!strncmp(buff, mem, strlen(mem))) {
-			for (int i=0; i<80 * 1024; i++ ) {
+			for (int i=0; i<RAMLEN; i++ ) {
 				int t;
 				fscanf(fp, "%02x", &t);
 				ram[i] = t;
