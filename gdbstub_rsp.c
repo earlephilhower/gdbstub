@@ -937,6 +937,11 @@ int dbg_main(struct dbg_state *state)
 			dbg_send_ok_packet(pkt_buf, sizeof(pkt_buf));
 			break;
 
+		case 'D':
+			dbg_send_ok_packet(NULL, 0);
+			exit(0);
+			break;
+
 		/* 
 		 * Continue
 		 * Command Format: c [addr]
