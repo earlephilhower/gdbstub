@@ -35,10 +35,10 @@ void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 	mem->size = size;
 	mem->data = data;
 	mem->next = NULL;
-	if (!dbg_state.mem) {
-		dbg_state.mem = mem;
+	if (!dbg_state.memory) {
+		dbg_state.memory = mem;
 	} else {
-		mem_region *here = dbg_state.mem;
+		mem_region *here = dbg_state.memory;
 		while (here->next) {
 			here = here->next;
 		}
@@ -118,7 +118,7 @@ int dbg_sys_getc(void)
 
 mem_region *dbg_find_mem(address addr)
 {
-	mem_region *mem = dbg_state.mem;
+	mem_region *mem = dbg_state.memory;
 	// Skip along until we find the region with this data
 	while (mem && ((addr < mem->base) || (addr >= (mem->base + mem->size)))){
 		mem = mem->next;
@@ -196,6 +196,7 @@ int main(int argc, char **argv)
 	}
 	dbg_sys_load(log);
 	dbg_sys_load_elf(elf);
+	for (int i=0; i<DBG_NUM_REGISTERS; i++) fprintf(stderr,"%03d: %08x\n", i, dbg_state.registers[i]);
 	dbg_main(&dbg_state);
 }
 

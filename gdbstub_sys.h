@@ -32,7 +32,7 @@ typedef struct mem_region {
 
 struct dbg_state {
 	uint32_t registers[DBG_NUM_REGISTERS]; // Most are undefined
-	mem_region *mem;
+	struct mem_region *memory;
 };
 
 void dbg_sys_load(const char *fname);     /* Parse dump into dbg_state */
