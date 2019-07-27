@@ -35,6 +35,7 @@ void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 	mem->size = size;
 	mem->data = data;
 	mem->next = NULL;
+	fprintf(stderr, "Add memory region %08x, %d, %p as %p\n", base, size, data, mem);
 	if (!dbg_state.memory) {
 		dbg_state.memory = mem;
 	} else {
@@ -73,7 +74,7 @@ void dbg_sys_load(const char *fname)
 			for (int i=0; i<80 * 1024; i++ ) {
 				int t;
 				fscanf(fp, "%02x", &t);
-				ram[i] = t;
+				//ram[i] = t;
 			}
 		}
 	}
@@ -196,7 +197,6 @@ int main(int argc, char **argv)
 	}
 	dbg_sys_load(log);
 	dbg_sys_load_elf(elf);
-	for (int i=0; i<DBG_NUM_REGISTERS; i++) fprintf(stderr,"%03d: %08x\n", i, dbg_state.registers[i]);
 	dbg_main(&dbg_state);
 }
 

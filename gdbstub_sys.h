@@ -21,7 +21,7 @@
 
 typedef uint32_t address;
 typedef uint32_t reg;
-#define DBG_NUM_REGISTERS 112
+#define DBG_NUM_REGISTERS 113
 
 typedef struct mem_region {
 	uint32_t           base;
