@@ -734,6 +734,14 @@ int dbg_read(char *buf, size_t buf_len, size_t len)
 	return 0;
 }
 
+
+static uint64_t u32_to_hex(uint32_t i) {
+	char buff[9];
+	uint8_t *src = (uint8_t *)&i;
+	sprintf(buff, "%02x%02x%02x%02x", src[0], src[1], src[2], src[3]);
+	return *(uint64_t*)buff;
+}
+
 /*****************************************************************************
  * Main Loop
  ****************************************************************************/
@@ -808,16 +816,22 @@ int dbg_main(struct dbg_state *state)
 		 * Read Registers
 		 * Command Format: g
 		 */
-		case 'g':
+		case 'g': {
 			/* Encode registers */
-			status = dbg_enc_hex(pkt_buf, sizeof(pkt_buf),
-			                     (char *)&(state->registers),
-			                     sizeof(state->registers));
-			if (status == EOF) {
-				goto error;
-			}
-			pkt_len = status;
+			uint64_t *ptr = (uint64_t *)pkt_buf;
+			ptr[0] = u32_to_hex(state->regs.pc);
+			for (int i=1; i<=35; i++) ptr[i] = 0x7878787878787878; // xxxx
+			ptr[36] = u32_to_hex(state->regs.sar);
+			ptr[37] = u32_to_hex(state->regs.litbase);
+			for (int i=38; i<=39; i++) ptr[i] = 0x7878787878787878; // xxxx
+			ptr[40] = u32_to_hex(state->regs.sr176);
+			for (int i=41; i<=41; i++) ptr[i] = 0x7878787878787878; // xxxx
+			ptr[42] = u32_to_hex(state->regs.ps);
+			for (int i=43; i<=96; i++) ptr[i] = 0x7878787878787878; // xxxx
+			for (int i=0; i<16; i++) ptr[97+i] = u32_to_hex(state->regs.a[i]);
+			pkt_len = 113 * sizeof(uint64_t);
 			dbg_send_packet(pkt_buf, pkt_len);
+			  }
 			break;
 		
 		/*
@@ -825,12 +839,14 @@ int dbg_main(struct dbg_state *state)
 		 * Command Format: G XX...
 		 */
 		case 'G':
+#if 0
 			status = dbg_dec_hex(pkt_buf+1, pkt_len-1,
 			                     (char *)&(state->registers),
 			                     sizeof(state->registers));
 			if (status == EOF) {
 				goto error;
 			}
+#endif
 			dbg_send_ok_packet(pkt_buf, sizeof(pkt_buf));
 			break;
 
@@ -839,6 +855,7 @@ int dbg_main(struct dbg_state *state)
 		 * Command Format: p n
 		 */
 		case 'p':
+#if 0
 			ptr_next += 1;
 			token_expect_integer_arg(addr);
 
@@ -853,6 +870,7 @@ int dbg_main(struct dbg_state *state)
 			if (status == EOF) {
 				goto error;
 			}
+#endif
 			dbg_send_packet(pkt_buf, status);
 			break;
 		
@@ -861,6 +879,7 @@ int dbg_main(struct dbg_state *state)
 		 * Command Format: P n...=r...
 		 */
 		case 'P':
+#if 0
 			ptr_next += 1;
 			token_expect_integer_arg(addr);
 			token_expect_seperator('=');
@@ -875,6 +894,7 @@ int dbg_main(struct dbg_state *state)
 			if (status == EOF) {
 				goto error;
 			}
+#endif
 			dbg_send_ok_packet(pkt_buf, sizeof(pkt_buf));
 			break;
 		

@@ -35,7 +35,6 @@ void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 	mem->size = size;
 	mem->data = data;
 	mem->next = NULL;
-	fprintf(stderr, "Add memory region %08x, %d, %p as %p\n", base, size, data, mem);
 	if (!dbg_state.memory) {
 		dbg_state.memory = mem;
 	} else {
@@ -60,21 +59,21 @@ void dbg_sys_load(const char *fname)
 	FILE *fp = fopen(fname, "r");
 	while (fgets(buff, sizeof(buff), fp)) {
 		if (!strncmp(buff, regs, strlen(regs))) {
-			fscanf(fp, "%x", &dbg_state.registers[0]);  // PC
-			fscanf(fp, "%x", &dbg_state.registers[42]); // PS
-			fscanf(fp, "%x", &dbg_state.registers[36]); // SAR
+			fscanf(fp, "%x", &dbg_state.regs.pc);
+			fscanf(fp, "%x", &dbg_state.regs.ps);
+			fscanf(fp, "%x", &dbg_state.regs.sar);
 			fscanf(fp, "%*x"); // VPRI
-			fscanf(fp, "%x", &dbg_state.registers[37]); // LITBASE
-			fscanf(fp, "%x", &dbg_state.registers[40]); // SR176
-			fscanf(fp, "%*x"); // SR208
 			for (int i=0; i<16; i++) {
-				fscanf(fp, "%x", &dbg_state.registers[97 + i]); // A[0]..A[15]
+				fscanf(fp, "%x", &dbg_state.regs.a[i]); // A[0]..A[15]
 			}
+			fscanf(fp, "%x", &dbg_state.regs.litbase);
+			fscanf(fp, "%x", &dbg_state.regs.sr176);
+			fscanf(fp, "%*x"); // SR208
 		} else if (!strncmp(buff, mem, strlen(mem))) {
 			for (int i=0; i<80 * 1024; i++ ) {
 				int t;
 				fscanf(fp, "%02x", &t);
-				//ram[i] = t;
+				ram[i] = t;
 			}
 		}
 	}
@@ -124,7 +123,6 @@ mem_region *dbg_find_mem(address addr)
 	while (mem && ((addr < mem->base) || (addr >= (mem->base + mem->size)))){
 		mem = mem->next;
 	}
-	fprintf(stderr, "mem(%x) = base %x sz %x data %p\n", addr, mem?mem->base:0, mem?mem->size:0, mem?mem->data:0);
 	return mem;
 }
 
