@@ -49,8 +49,8 @@ void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 void dbg_sys_load(const char *fname)
 {
 	char buff[256];
-	const char *regs = "--- begin regs ---";
-	const char *mem = "--- begin memory ---";
+	const char *regs = "---- begin regs ----";
+	const char *mem = "---- begin core ----";
 
 	// Always add the RAM, even if it's not loaded.  We can fill w/data later
 	uint8_t *ram = (uint8_t*)malloc(80 * 1024);
@@ -60,10 +60,12 @@ void dbg_sys_load(const char *fname)
 	while (fgets(buff, sizeof(buff), fp)) {
 		if (!strncmp(buff, regs, strlen(regs))) {
 			fscanf(fp, "%x", &dbg_state.registers[0]);  // PC
+			fscanf(fp, "%x", &dbg_state.registers[42]); // PS
 			fscanf(fp, "%x", &dbg_state.registers[36]); // SAR
+			fscanf(fp, "%*x"); // VPRI
 			fscanf(fp, "%x", &dbg_state.registers[37]); // LITBASE
 			fscanf(fp, "%x", &dbg_state.registers[40]); // SR176
-			fscanf(fp, "%x", &dbg_state.registers[42]); // PS
+			fscanf(fp, "%*x"); // SR208
 			for (int i=0; i<16; i++) {
 				fscanf(fp, "%x", &dbg_state.registers[97 + i]); // A[0]..A[15]
 			}
@@ -75,7 +77,6 @@ void dbg_sys_load(const char *fname)
 			}
 		}
 	}
-	dbg_state.registers[0] = 0x4010569c;
 }
 
 
