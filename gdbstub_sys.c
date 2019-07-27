@@ -81,9 +81,6 @@ void dbg_sys_load(const char *fname)
 			}
 		}
 	}
-	// Adjust to pull off the preserve_regs call
-	dbg_state.regs.pc = *(uint32_t*)&ram[dbg_state.regs.a[1] + 16 + 12 - RAMSTART];
-	dbg_state.regs.a[15] += 0x20;
 }
 
 
