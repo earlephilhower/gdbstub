@@ -23,9 +23,18 @@ typedef uint32_t address;
 typedef uint32_t reg;
 #define DBG_NUM_REGISTERS 112
 
+typedef struct mem_region {
+	uint32_t           base;
+	uint32_t           size;
+	uint8_t           *data;
+	struct mem_region *next;
+} mem_region;
+
 struct dbg_state {
 	uint32_t registers[DBG_NUM_REGISTERS]; // Most are undefined
-	uint8_t  mem[80*1024];
+	mem_region *mem;
 };
 
-void dbg_sys_load(FILE *fp);  /* Parse dump into dbg_state */
+void dbg_sys_load(const char *fname);     /* Parse dump into dbg_state */
+void dbg_sys_load_elf(const char *fname); /* ELF binary being debugged */
+

@@ -18,15 +18,45 @@
 
 #include "gdbstub.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <libelf.h>
 
+// Static ensures all fields are initted to 0, so no need to check later on
 static struct dbg_state    dbg_state;
 
-void dbg_sys_load(FILE *fp)
+void add_mem_region(uint32_t base, uint32_t size, uint8_t *data)
 {
-	memset(&dbg_state, 0, sizeof(dbg_state));
+	mem_region *mem = (mem_region*)malloc(sizeof(mem_region));
+	mem->base = base;
+	mem->size = size;
+	mem->data = data;
+	mem->next = NULL;
+	if (!dbg_state.mem) {
+		dbg_state.mem = mem;
+	} else {
+		mem_region *here = dbg_state.mem;
+		while (here->next) {
+			here = here->next;
+		}
+		here->next = mem;
+	}
+}
+
+void dbg_sys_load(const char *fname)
+{
 	char buff[256];
 	const char *regs = "--- begin regs ---";
 	const char *mem = "--- begin memory ---";
+
+	// Always add the RAM, even if it's not loaded.  We can fill w/data later
+	uint8_t *ram = (uint8_t*)malloc(80 * 1024);
+	add_mem_region(0x3FFEC000, 80*1024, ram);
+
+	FILE *fp = fopen(fname, "r");
 	while (fgets(buff, sizeof(buff), fp)) {
 		if (!strncmp(buff, regs, strlen(regs))) {
 			fscanf(fp, "%x", &dbg_state.registers[0]);  // PC
@@ -41,11 +71,29 @@ void dbg_sys_load(FILE *fp)
 			for (int i=0; i<80 * 1024; i++ ) {
 				int t;
 				fscanf(fp, "%02x", &t);
-				dbg_state.mem[i] = t;
+				ram[i] = t;
 			}
 		}
 	}
 	dbg_state.registers[0] = 0x4010569c;
+}
+
+
+void dbg_sys_load_elf(const char *fname)
+{
+	int fd = open(fname, O_RDONLY);
+	elf_version(EV_CURRENT);
+	Elf *elf = elf_begin(fd, ELF_C_READ, NULL);
+	Elf32_Ehdr *ehdr = elf32_getehdr(elf);
+	Elf32_Phdr *phdr = elf32_getphdr(elf);
+	for (int i=0; i<ehdr->e_phnum; i++) {
+		if (phdr[i].p_vaddr) {
+			uint8_t *mem = (uint8_t*)malloc(phdr[i].p_memsz);
+			pread(fd, mem, phdr[i].p_memsz, phdr[i].p_offset);
+			add_mem_region(phdr[i].p_vaddr, phdr[i].p_memsz, mem);
+		}
+	}
+	close(fd);
 }
 
 /*
@@ -67,15 +115,27 @@ int dbg_sys_getc(void)
 	return ret;
 }
 
+mem_region *dbg_find_mem(address addr)
+{
+	mem_region *mem = dbg_state.mem;
+	// Skip along until we find the region with this data
+	while (mem && ((addr < mem->base) || (addr >= (mem->base + mem->size)))){
+		mem = mem->next;
+	}
+	fprintf(stderr, "mem(%x) = base %x sz %x data %p\n", addr, mem?mem->base:0, mem?mem->size:0, mem?mem->data:0);
+	return mem;
+}
+
 /*
  * Read one byte from memory.
  */
 int dbg_sys_mem_readb(address addr, char *val)
 {
-	if (addr < 0x3FFEC000 || addr >= 0x40000000) {
+	mem_region *mem = dbg_find_mem(addr);
+	if (!mem) {
 		return -1;
 	}
-	*val = dbg_state.mem[addr - 0x3FFEC000];
+	*val = mem->data[addr - mem->base];
 	return 0;
 }
 
@@ -84,10 +144,11 @@ int dbg_sys_mem_readb(address addr, char *val)
  */
 int dbg_sys_mem_writeb(address addr, char val)
 {
-	if (addr < 0x3FFEC000 || addr >= 0x40000000) {
+	mem_region *mem = dbg_find_mem(addr);
+	if (!mem) {
 		return -1;
 	}
-	dbg_state.mem[addr - 0x3FFEC000] = val;
+	mem->data[addr - mem->base] = val;
 	return 0;
 }
 
@@ -110,11 +171,30 @@ int dbg_sys_step(void)
 
 extern int dbg_main(struct dbg_state *state);
 
+void usage()
+{
+	fprintf(stderr, "USAGE: gdbstub-xtensa-core --log <logfile.txt> --elf </path/to/sketch.ino.elf>\n");
+	exit(1);
+}
+
 int main(int argc, char **argv)
 {
-	FILE *f = fopen("crash.log", "r");
-	dbg_sys_load(f);
-	fclose(f);
+	const char *elf;
+	const char *log;
+	for (int i=1; i<argc; i++) {
+		if (!strcmp(argv[i], "--log")) {
+			log = argv[++i];
+		} else if (!strcmp(argv[i], "--elf")) {
+			elf = argv[++i];
+		} else {
+			usage();
+		}
+	}
+	if (!elf || !log) {
+		usage();
+	}
+	dbg_sys_load(log);
+	dbg_sys_load_elf(elf);
 	dbg_main(&dbg_state);
 }
 
