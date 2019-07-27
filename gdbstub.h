@@ -21,7 +21,9 @@
 #include <stdlib.h>
 
 /* Enable debug statements (printf) */
+#ifndef DEBUG
 #define DEBUG 0
+#endif
 
 /* Include platform specific definitions */
 #include "gdbstub_sys.h"

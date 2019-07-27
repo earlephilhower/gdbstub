@@ -742,6 +742,15 @@ static uint64_t u32_to_hex(uint32_t i) {
 	return *(uint64_t*)buff;
 }
 
+static uint32_t hex_to_u32(uint64_t i) {
+	char buff[9];
+	*(uint64_t*)buff = i;
+	buff[9] = 0;
+	uint32_t x;
+	sscanf(buff, "%x", &x);
+	return x;
+}
+
 /*****************************************************************************
  * Main Loop
  ****************************************************************************/
@@ -838,16 +847,17 @@ int dbg_main(struct dbg_state *state)
 		 * Write Registers
 		 * Command Format: G XX...
 		 */
-		case 'G':
-#if 0
-			status = dbg_dec_hex(pkt_buf+1, pkt_len-1,
-			                     (char *)&(state->registers),
-			                     sizeof(state->registers));
-			if (status == EOF) {
-				goto error;
-			}
-#endif
+		case 'G': {
+			/* De registers */
+			uint64_t *ptr = (uint64_t *)pkt_buf;
+			state->regs.pc = hex_to_u32(ptr[0]);
+			state->regs.sar = hex_to_u32(ptr[36]);
+			state->regs.litbase = hex_to_u32(ptr[37]);
+			state->regs.sr176 = hex_to_u32(ptr[40]);
+			state->regs.ps = hex_to_u32(ptr[42]);
+			for (int i=0; i<16; i++) state->regs.a[i] = hex_to_u32(ptr[97+i]);
 			dbg_send_ok_packet(pkt_buf, sizeof(pkt_buf));
+			  }
 			break;
 
 		/*
@@ -855,23 +865,36 @@ int dbg_main(struct dbg_state *state)
 		 * Command Format: p n
 		 */
 		case 'p':
-#if 0
 			ptr_next += 1;
 			token_expect_integer_arg(addr);
 
-			if (addr >= DBG_NUM_REGISTERS) {
-				goto error;
+			uint64_t *p = (uint64_t *)pkt_buf;
+			switch (addr) {
+				case 0: *p = u32_to_hex(state->regs.pc); break;
+				case 36: *p = u32_to_hex(state->regs.sar); break;
+				case 37: *p = u32_to_hex(state->regs.litbase); break;
+				case 40: *p = u32_to_hex(state->regs.sr176); break;
+				case 42: *p = u32_to_hex(state->regs.ps); break;
+				case 97: *p = u32_to_hex(state->regs.a[0]); break;
+				case 98: *p = u32_to_hex(state->regs.a[1]); break;
+				case 99: *p = u32_to_hex(state->regs.a[2]); break;
+				case 100: *p = u32_to_hex(state->regs.a[3]); break;
+				case 101: *p = u32_to_hex(state->regs.a[4]); break;
+				case 102: *p = u32_to_hex(state->regs.a[5]); break;
+				case 103: *p = u32_to_hex(state->regs.a[6]); break;
+				case 104: *p = u32_to_hex(state->regs.a[7]); break;
+				case 105: *p = u32_to_hex(state->regs.a[8]); break;
+				case 106: *p = u32_to_hex(state->regs.a[9]); break;
+				case 107: *p = u32_to_hex(state->regs.a[10]); break;
+				case 108: *p = u32_to_hex(state->regs.a[11]); break;
+				case 109: *p = u32_to_hex(state->regs.a[12]); break;
+				case 110: *p = u32_to_hex(state->regs.a[13]); break;
+				case 111: *p = u32_to_hex(state->regs.a[14]); break;
+				case 112: *p = u32_to_hex(state->regs.a[15]); break;
+				default: *p = 0x7878787878787878; break;
 			}
-
-			/* Read Register */
-			status = dbg_enc_hex(pkt_buf, sizeof(pkt_buf),
-			                     (char *)&(state->registers[addr]),
-			                     sizeof(state->registers[addr]));
-			if (status == EOF) {
-				goto error;
-			}
-#endif
-			dbg_send_packet(pkt_buf, status);
+			dbg_send_packet(pkt_buf, sizeof(uint64_t));
+			goto error;
 			break;
 		
 		/*
@@ -894,8 +917,9 @@ int dbg_main(struct dbg_state *state)
 			if (status == EOF) {
 				goto error;
 			}
-#endif
 			dbg_send_ok_packet(pkt_buf, sizeof(pkt_buf));
+#endif
+			goto error;
 			break;
 		
 		/*
